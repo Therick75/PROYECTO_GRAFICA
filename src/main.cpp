@@ -42,8 +42,18 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
         // Cambio a la tecla M
         if (key == GLFW_KEY_M) juego->sembrarPapa();
+        // regar tierra con la tecla R
+        if (key == GLFW_KEY_R) juego->regarTierra();
+        // --- NUEVA TECLA PARA COSECHAR ---
+        if (key == GLFW_KEY_C) juego->cosechar();
+
+        if (key == GLFW_KEY_1) juego->comprarSemillaPapa();
+
+        if (key == GLFW_KEY_2) juego->comprarAgua();
     }
 }
+
+
 
 unsigned int crearProgramaShader(const char* rutaVertex, const char* rutaFragment) {
     std::ifstream vShaderFile(rutaVertex), fShaderFile(rutaFragment);
@@ -189,7 +199,9 @@ int main() {
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        
+
+        juego.pasarElTiempo(deltaTime);
+
         processInput(window);
         
         glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
@@ -221,13 +233,21 @@ int main() {
             glm::mat4 modelTerreno = glm::mat4(1.0f);
             modelTerreno = glm::translate(modelTerreno, juego.terreno[i].posicion);
             
-            // Evaluamos el estado de la tierra para cambiar su color
+            // Lógica de colores basada en el tiempo y el agua
             if (juego.terreno[i].estado == VACIO) {
-                // Tierra seca / Normal (Marrón claro)
-                glUniform4f(colorLoc, 0.54f, 0.27f, 0.07f, 1.0f); 
+                glUniform4f(colorLoc, 0.54f, 0.27f, 0.07f, 1.0f); // Marrón tierra
             } else if (juego.terreno[i].estado == SEMBRADO) {
-                // Tierra húmeda / Sembrada (Marrón oscuro)
-                glUniform4f(colorLoc, 0.35f, 0.16f, 0.04f, 1.0f); 
+                glUniform4f(colorLoc, 0.35f, 0.16f, 0.04f, 1.0f); // Marrón oscuro
+            } else if (juego.terreno[i].estado == CRECIENDO) {
+                if (juego.terreno[i].necesitaAgua) {
+                    glUniform4f(colorLoc, 1.0f, 0.0f, 0.0f, 1.0f); // ROJO (Pide agua 1L)
+                } else {
+                    glUniform4f(colorLoc, 0.0f, 0.7f, 0.0f, 1.0f); // VERDE (Sana)
+                }
+            } else if (juego.terreno[i].estado == MARCHITO) {
+                glUniform4f(colorLoc, 0.5f, 0.0f, 0.0f, 1.0f); // ROJO OSCURO (Pide agua 2L)
+            } else if (juego.terreno[i].estado == LISTO) {
+                glUniform4f(colorLoc, 0.8f, 0.8f, 0.0f, 1.0f); // AMARILLO (Lista para cosechar)
             }
 
             unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
