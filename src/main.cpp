@@ -12,14 +12,33 @@
 #include <vector> // Necesario para std::vector
 #include "juego/juegoGranja.h"
 
-JuegoGranja juego;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+JuegoGranja juego;
+
+
 void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
+    }
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    // Recuperamos el puntero a nuestro juego
+    JuegoGranja* juego = static_cast<JuegoGranja*>(glfwGetWindowUserPointer(window));
+    if (!juego) return;
+
+    if (action == GLFW_PRESS) {
+        if (key == GLFW_KEY_W) juego->moverArriba();
+        if (key == GLFW_KEY_S) juego->moverAbajo();
+        if (key == GLFW_KEY_A) juego->moverIzquierda();
+        if (key == GLFW_KEY_D) juego->moverDerecha();
+        if (key == GLFW_KEY_SPACE) juego->sembrarPapa();
     }
 }
 
@@ -49,6 +68,8 @@ unsigned int crearProgramaShader(const char* rutaVertex, const char* rutaFragmen
     glDeleteShader(fragment);
     return ID;
 }
+
+
 
 int main() {
     glfwInit();
@@ -155,6 +176,11 @@ int main() {
     }
 
     glUseProgram(shaderProgram);
+    // Vincular la instancia del juego a la ventana para los controles
+    glfwSetWindowUserPointer(window, &juego);
+    glfwSetKeyCallback(window, key_callback);
+
+    glUseProgram(shaderProgram);
 
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -182,28 +208,41 @@ int main() {
         glBindVertexArray(VAO);
         
         // --- DIBUJAR LOS 16 BLOQUES DEL TERRENO ---
-        for (unsigned int i = 0; i < juego.posicionesTerreno.size(); i++) {
+        // Obtener la ubicación de la variable 'objectColor' en la tarjeta gráfica
+        unsigned int colorLoc = glGetUniformLocation(shaderProgram, "objectColor");
+
+        // -----------------------------------------
+        // 1. DIBUJAR LOS BLOQUES DEL TERRENO
+        // -----------------------------------------
+        for (unsigned int i = 0; i < juego.terreno.size(); i++) {
             glm::mat4 modelTerreno = glm::mat4(1.0f);
-            modelTerreno = glm::translate(modelTerreno, juego.posicionesTerreno[i]);
+            modelTerreno = glm::translate(modelTerreno, juego.terreno[i].posicion);
             
+            // Evaluamos el estado de la tierra para cambiar su color
+            if (juego.terreno[i].estado == VACIO) {
+                // Tierra seca / Normal (Marrón claro)
+                glUniform4f(colorLoc, 0.54f, 0.27f, 0.07f, 1.0f); 
+            } else if (juego.terreno[i].estado == SEMBRADO) {
+                // Tierra húmeda / Sembrada (Marrón oscuro)
+                glUniform4f(colorLoc, 0.35f, 0.16f, 0.04f, 1.0f); 
+            }
+
             unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
             glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelTerreno));
-
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
         // -----------------------------------------
-        // 2. DIBUJAR EL AGRICULTOR (Cuadrado pequeño)
+        // 2. DIBUJAR EL AGRICULTOR (Negro)
         // -----------------------------------------
+        glUniform4f(colorLoc, 0.0f, 0.0f, 0.0f, 1.0f);
+
         glm::mat4 modelAgricultor = glm::mat4(1.0f);
-        // Primero lo movemos a su posición
         modelAgricultor = glm::translate(modelAgricultor, juego.posicionAgricultor);
-        // Luego lo escalamos para que sea más pequeño que la tierra
         modelAgricultor = glm::scale(modelAgricultor, glm::vec3(juego.escalaAgricultor));
         
         unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelAgricultor));
-
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
