@@ -9,12 +9,14 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector> // Necesario para std::vector
+#include "juego/juegoGranja.h"
 
-// Variables globales para el tiempo
+JuegoGranja juego;
+
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// Solo dejamos la tecla ESC para salir
 void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
@@ -54,10 +56,8 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Un Bloque Estatico", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Terreno de Cultivo 4x4", NULL, NULL);
     glfwMakeContextCurrent(window);
-    
-    // Restauramos el cursor para que lo puedas ver y usar normalmente
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
@@ -65,7 +65,6 @@ int main() {
 
     unsigned int shaderProgram = crearProgramaShader("src/vertex.glsl", "src/fragment.glsl");
 
-    // Coordenadas del cubo y sus texturas
     float vertices[] = {
         -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
          0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
@@ -123,7 +122,6 @@ int main() {
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    // Cargar textura
     unsigned int textura;
     glGenTextures(1, &textura);
     glBindTexture(GL_TEXTURE_2D, textura);
@@ -139,6 +137,23 @@ int main() {
     }
     stbi_image_free(data);
 
+    // --- GENERAR POSICIONES DEL TERRENO 4x4 ---
+    std::vector<glm::vec3> terrainPositions;
+    const int filas = 4;
+    const int columnas = 4;
+
+    for (int z = 0; z < filas; z++) {
+        for (int x = 0; x < columnas; x++) {
+            // Calculamos X y Z para que el cuadrado 4x4 quede centrado en la pantalla
+            // Al restar 1.5f, las coordenadas van de -1.5 a +1.5, dejando el centro en 0
+            float posX = x - 1.5f;
+            float posY = 0.0f; 
+            float posZ = z - 1.5f;
+            
+            terrainPositions.push_back(glm::vec3(posX, posY, posZ));
+        }
+    }
+
     glUseProgram(shaderProgram);
 
     while (!glfwWindowShouldClose(window)) {
@@ -151,11 +166,11 @@ int main() {
         glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
-        // 1. CÁMARA FIJA (Vista elevada estilo Plants vs Zombies)
+        // Cámara estática, ligeramente más alta y lejos para ver todo el tablero
         glm::mat4 view = glm::lookAt(
-            glm::vec3(0.0f, 5.0f, 6.0f),  // Posición de la cámara (arriba y atrás)
-            glm::vec3(0.0f, 0.0f, 0.0f),  // Hacia dónde mira (el centro del cubo)
-            glm::vec3(0.0f, 1.0f, 0.0f)   // Vector "Arriba"
+            glm::vec3(0.0f, 6.0f, 8.0f),  
+            glm::vec3(0.0f, 0.0f, 0.0f),  
+            glm::vec3(0.0f, 1.0f, 0.0f)   
         );
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
 
@@ -166,13 +181,30 @@ int main() {
 
         glBindVertexArray(VAO);
         
-        // 2. MODELO ESTÁTICO (Un solo cubo, sin rotación)
-        glm::mat4 model = glm::mat4(1.0f); // Matriz identidad (posición 0,0,0)
+        // --- DIBUJAR LOS 16 BLOQUES DEL TERRENO ---
+        for (unsigned int i = 0; i < juego.posicionesTerreno.size(); i++) {
+            glm::mat4 modelTerreno = glm::mat4(1.0f);
+            modelTerreno = glm::translate(modelTerreno, juego.posicionesTerreno[i]);
+            
+            unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelTerreno));
+
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
+        // -----------------------------------------
+        // 2. DIBUJAR EL AGRICULTOR (Cuadrado pequeño)
+        // -----------------------------------------
+        glm::mat4 modelAgricultor = glm::mat4(1.0f);
+        // Primero lo movemos a su posición
+        modelAgricultor = glm::translate(modelAgricultor, juego.posicionAgricultor);
+        // Luego lo escalamos para que sea más pequeño que la tierra
+        modelAgricultor = glm::scale(modelAgricultor, glm::vec3(juego.escalaAgricultor));
         
         unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(modelAgricultor));
 
-        glDrawArrays(GL_TRIANGLES, 0, 36); // Dibujamos un solo cubo
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
