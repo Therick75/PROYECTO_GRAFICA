@@ -39,6 +39,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         if (key == GLFW_KEY_A) juego->moverIzquierda();
         if (key == GLFW_KEY_D) juego->moverDerecha();
         if (key == GLFW_KEY_SPACE) juego->sembrarPapa();
+
+        // Cambio a la tecla M
+        if (key == GLFW_KEY_M) juego->sembrarPapa();
     }
 }
 

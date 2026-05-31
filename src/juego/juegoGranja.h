@@ -46,6 +46,7 @@ public:
         filasTerreno = 4;
         columnasTerreno = 4;
         generarTerreno();
+        mostrarRecursos();
     }
 
     // Traduce la posición lógica (0,1,2,3) a coordenadas 3D del mundo
@@ -68,12 +69,24 @@ public:
             terreno[indice].estado = SEMBRADO;
             semillasPapa--;
             std::cout << "Papa sembrada. Semillas restantes: " << semillasPapa << "\n";
+            mostrarRecursos(); 
         } else if (terreno[indice].estado != VACIO) {
             std::cout << "La tierra ya esta ocupada.\n";
         } else {
             std::cout << "No tienes semillas de papa.\n";
         }
     }
+
+    void mostrarRecursos() {
+        std::cout << "\n--- ESTADO DE RECURSOS ---\n";
+        std::cout << "Semillas de Papa:   " << semillasPapa << "\n";
+        std::cout << "Semillas de Quinua: " << semillasQuinua << "\n";
+        std::cout << "Semillas de Habas:  " << semillasHabas << "\n";
+        std::cout << "Agua:               " << aguaLitros << " Litros\n";
+        std::cout << "Dinero:             " << dineroSoles << " Soles\n";
+        std::cout << "--------------------------\n";
+    }
+
 
 private:
     void generarTerreno() {
