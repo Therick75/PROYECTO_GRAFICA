@@ -22,15 +22,19 @@ enum ComandoDron
 struct DronAutomatizado
 {
     bool activo = false;
-    int x = 0;
-    int z = 0;
+    int x = 0; 
+    int z = 0; 
     Direccion mirando = NORTE;
+
+    // --- NUEVAS VARIABLES VISUALES ---
+    glm::vec3 posicion3D;
+    float escala = 0.4f;
+    float alturaFlote = 0.85f;
 
     std::vector<ComandoDron> rutina;
     int pasoActual = 0;
     float tiempoUltimoPaso = 0.0f;
 
-    // Para el Hot-Reloading
     std::string rutaScript = "script_dron.txt";
     std::filesystem::file_time_type fechaUltimaLectura;
 };
@@ -74,86 +78,94 @@ public:
     int diaActualEntero;
 
     // --- AGRICULTOR ---
-    int gridX; // Posición en columnas (0 a 3)
-    int gridZ; // Posición en filas (0 a 3)
+    int gridX; // 
+    int gridZ; // 
     glm::vec3 posicionAgricultor;
     float escalaAgricultor;
 
+    // --- DRON VISUALES ---
+    glm::vec3 posicionDron;
+    float escalaDron;
+
     // --- TERRENO ---
-    int filasTerreno;
-    int columnasTerreno;
+    int tamanioMundo;
     std::vector<BloqueTierra> terreno;
     DronAutomatizado miDron;
 
+    #pragma region JuegoGranja
     JuegoGranja()
     {
-        semillasPapa = 1;
+        // Inventario inicial
+        semillasPapa = 10;
         semillasQuinua = 0;
         semillasHabas = 0;
         aguaLitros = 10.0f;
-        dineroSoles = 0;
+        dineroSoles = 400;
 
         // Tiempo global del juego
         diasGlobales = 0.0f;
         diaActualEntero = 0;
 
         // Inicia en la coordenada lógica (1, 1) del tablero
-        gridX = 1;
-        gridZ = 1;
+        gridX = 0;
+        gridZ = 0;
         escalaAgricultor = 0.5f;
-        actualizarPosicionAgricultor();
+        escalaDron = 0.3f;
+        tamanioMundo = 4;
 
-        filasTerreno = 4;
-        columnasTerreno = 4;
+        // Inicializamos el terreno con bloques vacíos
+        actualizarPosicionAgricultor();
         generarTerreno();
         mostrarRecursos();
     }
+    #pragma endregion
 
-    // Traduce la posición lógica (0,1,2,3) a coordenadas 3D del mundo
+    #pragma region actualizarPosiciones
+    // actualiza la posicion del agricultor en el mundo 3D basado en su coordenada lógica (gridX, gridZ)
     void actualizarPosicionAgricultor()
     {
-        posicionAgricultor = glm::vec3(gridX - 1.5f, 0.75f, gridZ - 1.5f);
+        float offset = (tamanioMundo - 1) / 2.0f;
+        posicionAgricultor = glm::vec3(gridX - offset, 0.75f, gridZ - offset);
     }
+    
+    void actualizarPosicionDron()
+    {
+        // Usamos la misma fórmula dinámica para que se adapte si el mapa crece
+        float offset = (tamanioMundo - 1) / 2.0f;
+        posicionDron = glm::vec3(miDron.x - offset, 0.85f, miDron.z - offset);
+    }
+    #pragma endregion
 
-    // Movimiento con límites (no salir del 4x4)
+    #pragma region Movimientos
+    // movimientos del agricultor
     void moverArriba()
     {
-        if (gridZ > 0)
-        {
-            gridZ--;
-            actualizarPosicionAgricultor();
-        }
+        gridZ = (gridZ - 1 + tamanioMundo) % tamanioMundo;
+        actualizarPosicionAgricultor();
     }
     void moverAbajo()
     {
-        if (gridZ < filasTerreno - 1)
-        {
-            gridZ++;
-            actualizarPosicionAgricultor();
-        }
+        gridZ = (gridZ + 1) % tamanioMundo;
+        actualizarPosicionAgricultor();
     }
     void moverIzquierda()
     {
-        if (gridX > 0)
-        {
-            gridX--;
-            actualizarPosicionAgricultor();
-        }
+        gridX = (gridX - 1 + tamanioMundo) % tamanioMundo;
+        actualizarPosicionAgricultor();
     }
     void moverDerecha()
     {
-        if (gridX < columnasTerreno - 1)
-        {
-            gridX++;
-            actualizarPosicionAgricultor();
-        }
+        gridX = (gridX + 1) % tamanioMundo;
+        actualizarPosicionAgricultor();
     }
+#pragma endregion
 
+    #pragma region sembrar
     // Función para sembrar en la posición actual
     void sembrarPapa()
     {
         // Calculamos el índice del arreglo 1D a partir de 2D: (fila * total_columnas) + columna
-        int indice = (gridZ * columnasTerreno) + gridX;
+        int indice = (gridZ * tamanioMundo) + gridX;
 
         if (terreno[indice].estado == VACIO && semillasPapa > 0)
         {
@@ -173,6 +185,103 @@ public:
         }
     }
 
+    #pragma endregion
+
+    #pragma region regar
+    void regarTierra()
+    {
+        int indice = (gridZ * tamanioMundo) + gridX;
+        BloqueTierra &bloque = terreno[indice];
+
+        if (bloque.necesitaAgua)
+        {
+            if (bloque.estado == CRECIENDO)
+            {
+                if (aguaLitros >= 1.0f)
+                {
+                    aguaLitros -= 1.0f;
+                    bloque.necesitaAgua = false;
+                    std::cout << "Planta regada (Consumio 1L).\n";
+                    mostrarRecursos();
+                }
+                else
+                {
+                    std::cout << "Falta agua. Necesitas 1L.\n";
+                }
+            }
+            else if (bloque.estado == MARCHITO)
+            {
+                if (aguaLitros >= 2.0f)
+                {
+                    aguaLitros -= 2.0f;
+                    bloque.necesitaAgua = false;
+                    bloque.estado = CRECIENDO; // Se recupera de estar marchita
+                    std::cout << "Planta recuperada (Consumio 2L).\n";
+                    mostrarRecursos();
+                }
+                else
+                {
+                    std::cout << "Falta agua. Necesitas 2L para recuperar esta planta.\n";
+                }
+            }
+        }
+        else
+        {
+            std::cout << "Esta tierra no necesita agua en este momento.\n";
+        }
+    }
+    #pragma endregion
+
+    #pragma region cosechar
+    // --- NUEVA FUNCIÓN PARA COSECHAR ---
+    void cosechar()
+    {
+        int indice = (gridZ * tamanioMundo) + gridX;
+        BloqueTierra &bloque = terreno[indice];
+
+        if (bloque.estado == LISTO)
+        {
+            int ganancia = 0;
+            std::string nombreCultivo = "";
+
+            // Calculamos la ganancia según el tipo de semilla que tenía la tierra
+            if (bloque.cultivo == PAPA)
+            {
+                ganancia = 10;
+                nombreCultivo = "Papa";
+            }
+            else if (bloque.cultivo == HABAS)
+            {
+                ganancia = 8;
+                nombreCultivo = "Habas";
+            }
+            else if (bloque.cultivo == QUINUA)
+            {
+                ganancia = 9;
+                nombreCultivo = "Quinua";
+            }
+
+            // Sumamos el dinero y limpiamos la tierra
+            dineroSoles += ganancia;
+            bloque.estado = VACIO;
+            bloque.cultivo = NINGUNO;
+            bloque.diasPlantado = 0.0f;
+            bloque.necesitaAgua = false;
+
+            std::cout << "¡Cosechaste " << nombreCultivo << " y ganaste " << ganancia << " soles!\n";
+            mostrarRecursos();
+        }
+        else if (bloque.estado == VACIO)
+        {
+            std::cout << "No hay nada sembrado aqui.\n";
+        }
+        else
+        {
+            std::cout << "La planta aun no esta lista para ser cosechada.\n";
+        }
+    }
+    #pragma endregion
+    
     void mostrarRecursos()
     {
         std::cout << "\n--- ESTADO DE RECURSOS ---\n";
@@ -184,6 +293,7 @@ public:
         std::cout << "--------------------------\n";
     }
 
+    #pragma region comprarRecursos
     // --- TIENDA ---
     void comprarSemillaPapa()
     {
@@ -230,8 +340,9 @@ public:
         {
             dineroSoles -= costo;
             miDron.activo = true;
-            miDron.x = gridX;
-            miDron.z = gridZ;
+            miDron.x = 0;
+            miDron.z = 0;
+            actualizarPosicionDron();
 
             // Creamos el archivo vacío al comprar el dron para que el jugador lo edite
             if (!std::filesystem::exists(miDron.rutaScript))
@@ -256,55 +367,75 @@ public:
         }
     }
 
+    // --- COMPRAR EXPANSIÓN DEL MUNDO ---
+    void expandirMundo()
+    {
+        // Costo dinámico: Depende del tamaño actual. 
+        // Ej: Pasar de 4x4 a 5x5 cuesta 4 * 50 = 200 soles.
+        int costoExpansion = tamanioMundo * 50;
+
+        if (dineroSoles >= costoExpansion)
+        {
+            dineroSoles -= costoExpansion;
+
+            int nuevaDimension = tamanioMundo + 1;
+            std::vector<BloqueTierra> nuevoTerreno;
+            float nuevoOffset = (nuevaDimension - 1) / 2.0f;
+
+            // Reconstruimos el mundo con el nuevo tamaño
+            for (int z = 0; z < nuevaDimension; z++)
+            {
+                for (int x = 0; x < nuevaDimension; x++)
+                {
+                    BloqueTierra bloque;
+                    bloque.posicion = glm::vec3(x - nuevoOffset, 0.0f, z - nuevoOffset);
+
+                    // Si la coordenada existía en el mapa viejo, copiamos su estado exacto
+                    if (x < tamanioMundo && z < tamanioMundo)
+                    {
+                        int indiceViejo = (z * tamanioMundo) + x;
+                        bloque.estado = terreno[indiceViejo].estado;
+                        bloque.cultivo = terreno[indiceViejo].cultivo;
+                        bloque.diasPlantado = terreno[indiceViejo].diasPlantado;
+                        bloque.necesitaAgua = terreno[indiceViejo].necesitaAgua;
+                    }
+                    else
+                    {
+                        // Son los nuevos bloques de expansión (Bordes nuevos)
+                        bloque.estado = VACIO;
+                        bloque.cultivo = NINGUNO;
+                        bloque.diasPlantado = 0.0f;
+                        bloque.necesitaAgua = false;
+                    }
+                    nuevoTerreno.push_back(bloque);
+                }
+            }
+
+            // Aplicamos los cambios al juego
+            terreno = nuevoTerreno;
+            tamanioMundo = nuevaDimension;
+
+            // Recalculamos el centro visual de los personajes
+            actualizarPosicionAgricultor();
+            if (miDron.activo) actualizarPosicionDron();
+
+            std::cout << "\n[SISTEMA] ¡EXPANSION EXITOSA! El mundo ahora es " << tamanioMundo << "x" << tamanioMundo << "\n";
+            mostrarRecursos();
+        }
+        else
+        {
+            std::cout << "Necesitas " << costoExpansion << " soles para expandir la granja (Tienes " << dineroSoles << ").\n";
+        }
+    }
+    #pragma endregion
+
     void procesarRutinaDron(float deltaTime) {
         if (!miDron.activo) return;
         // FUTURO: Aquí es donde el dron ejecutará paso a paso la lista de comandos
         // cada cierto tiempo, usando el deltaTime.
     }
 
-    void regarTierra()
-    {
-        int indice = (gridZ * columnasTerreno) + gridX;
-        BloqueTierra &bloque = terreno[indice];
-
-        if (bloque.necesitaAgua)
-        {
-            if (bloque.estado == CRECIENDO)
-            {
-                if (aguaLitros >= 1.0f)
-                {
-                    aguaLitros -= 1.0f;
-                    bloque.necesitaAgua = false;
-                    std::cout << "Planta regada (Consumio 1L).\n";
-                    mostrarRecursos();
-                }
-                else
-                {
-                    std::cout << "Falta agua. Necesitas 1L.\n";
-                }
-            }
-            else if (bloque.estado == MARCHITO)
-            {
-                if (aguaLitros >= 2.0f)
-                {
-                    aguaLitros -= 2.0f;
-                    bloque.necesitaAgua = false;
-                    bloque.estado = CRECIENDO; // Se recupera de estar marchita
-                    std::cout << "Planta recuperada (Consumio 2L).\n";
-                    mostrarRecursos();
-                }
-                else
-                {
-                    std::cout << "Falta agua. Necesitas 2L para recuperar esta planta.\n";
-                }
-            }
-        }
-        else
-        {
-            std::cout << "Esta tierra no necesita agua en este momento.\n";
-        }
-    }
-
+    #pragma region tiempo
     // Función que se llamará en cada ciclo del juego
     void pasarElTiempo(float deltaTime)
     {
@@ -357,54 +488,9 @@ public:
             }
         }
     }
+    #pragma endregion
 
-    // --- NUEVA FUNCIÓN PARA COSECHAR ---
-    void cosechar()
-    {
-        int indice = (gridZ * columnasTerreno) + gridX;
-        BloqueTierra &bloque = terreno[indice];
-
-        if (bloque.estado == LISTO)
-        {
-            int ganancia = 0;
-            std::string nombreCultivo = "";
-
-            // Calculamos la ganancia según el tipo de semilla que tenía la tierra
-            if (bloque.cultivo == PAPA)
-            {
-                ganancia = 10;
-                nombreCultivo = "Papa";
-            }
-            else if (bloque.cultivo == HABAS)
-            {
-                ganancia = 8;
-                nombreCultivo = "Habas";
-            }
-            else if (bloque.cultivo == QUINUA)
-            {
-                ganancia = 9;
-                nombreCultivo = "Quinua";
-            }
-
-            // Sumamos el dinero y limpiamos la tierra
-            dineroSoles += ganancia;
-            bloque.estado = VACIO;
-            bloque.cultivo = NINGUNO;
-            bloque.diasPlantado = 0.0f;
-            bloque.necesitaAgua = false;
-
-            std::cout << "¡Cosechaste " << nombreCultivo << " y ganaste " << ganancia << " soles!\n";
-            mostrarRecursos();
-        }
-        else if (bloque.estado == VACIO)
-        {
-            std::cout << "No hay nada sembrado aqui.\n";
-        }
-        else
-        {
-            std::cout << "La planta aun no esta lista para ser cosechada.\n";
-        }
-    }
+    
 
     void vigilarScriptDron()
     {
@@ -460,15 +546,23 @@ public:
         std::cout << "-----------------------\n";
     }
 
+    
+    
+
 private:
+
+    #pragma region generarTerreno
     void generarTerreno()
     {
-        for (int z = 0; z < filasTerreno; z++)
+        terreno.clear(); // Limpiamos por seguridad
+        float offset = (tamanioMundo - 1) / 2.0f;
+
+        for (int z = 0; z < tamanioMundo; z++)
         {
-            for (int x = 0; x < columnasTerreno; x++)
+            for (int x = 0; x < tamanioMundo; x++)
             {
                 BloqueTierra bloque;
-                bloque.posicion = glm::vec3(x - 1.5f, 0.0f, z - 1.5f);
+                bloque.posicion = glm::vec3(x - offset, 0.0f, z - offset);
                 bloque.estado = VACIO; // Todo inicia vacío
                 bloque.diasPlantado = 0.0f;
                 bloque.necesitaAgua = false;
@@ -477,4 +571,6 @@ private:
             }
         }
     }
+    #pragma endregion
+
 };

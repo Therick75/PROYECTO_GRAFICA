@@ -13,6 +13,7 @@
 #include "juego/juegoGranja.h"
 #include <filesystem>
 namespace fs = std::filesystem;
+using namespace std;
 
 
 float deltaTime = 0.0f;
@@ -54,6 +55,9 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         if (key == GLFW_KEY_2) juego->comprarAgua();
 
         if (key == GLFW_KEY_3) juego->comprarDron();
+
+        // --- NUEVA TECLA PARA EXPANDIR ---
+        if (key == GLFW_KEY_5) juego->expandirMundo();
     }
 }
 
@@ -268,6 +272,7 @@ int main() {
         glUniform4f(colorLoc, 0.0f, 0.0f, 0.0f, 1.0f);
 
         glm::mat4 modelAgricultor = glm::mat4(1.0f);
+        // std::cout << "debug main agricultor" << juego.posicionAgricultor.x << ", " << juego.posicionAgricultor.y << ", " << juego.posicionAgricultor.z << "\n";
         modelAgricultor = glm::translate(modelAgricultor, juego.posicionAgricultor);
         modelAgricultor = glm::scale(modelAgricultor, glm::vec3(juego.escalaAgricultor));
         
@@ -279,20 +284,12 @@ int main() {
         // 3. DIBUJAR EL DRON AUTOMATIZADO (Azul Claro)
         // -----------------------------------------
         if (juego.miDron.activo) {
-            // Le damos un color azul metálico/claro para distinguirlo
             glUniform4f(colorLoc, 0.4f, 0.7f, 1.0f, 1.0f); 
 
             glm::mat4 modelDron = glm::mat4(1.0f);
-            
-            // Calculamos su posición 3D real usando sus coordenadas lógicas x, z
-            float posX_Dron = juego.miDron.x - 1.5f;
-            float posZ_Dron = juego.miDron.z - 1.5f;
-            
-            // Lo ponemos un poquito más alto (0.85f) para que parezca que flota sobre la tierra
-            modelDron = glm::translate(modelDron, glm::vec3(posX_Dron, 0.85f, posZ_Dron));
-            
-            // Lo hacemos un poco más pequeño que el agricultor
-            modelDron = glm::scale(modelDron, glm::vec3(0.4f)); 
+            // std::cout << "debug main dron " << juego.posicionDron.x << ", " << juego.posicionDron.y << ", " << juego.posicionDron.z << "\n";
+            modelDron = glm::translate(modelDron, juego.posicionDron);
+            modelDron = glm::scale(modelDron, glm::vec3(juego.escalaDron)); 
             
             unsigned int modelLocDron = glGetUniformLocation(shaderProgram, "model");
             glUniformMatrix4fv(modelLocDron, 1, GL_FALSE, glm::value_ptr(modelDron));
