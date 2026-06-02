@@ -47,7 +47,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         if (key == GLFW_KEY_M) juego->sembrarPapa();
         // regar tierra con la tecla R
         if (key == GLFW_KEY_R) juego->regarTierra();
-        // --- NUEVA TECLA PARA COSECHAR ---
+        // --- TECLA PARA COSECHAR ---
         if (key == GLFW_KEY_C) juego->cosechar();
 
         if (key == GLFW_KEY_1) juego->comprarSemillaPapa();
@@ -56,8 +56,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
         if (key == GLFW_KEY_3) juego->comprarDron();
 
-        // --- NUEVA TECLA PARA EXPANDIR ---
+        // --- TECLA PARA EXPANDIR ---
         if (key == GLFW_KEY_5) juego->expandirMundo();
+
+        // --- TECLA PARA PAUSA ---
+        if (key == GLFW_KEY_P) juego->alternarPausa();
     }
 }
 

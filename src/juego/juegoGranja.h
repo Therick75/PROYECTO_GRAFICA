@@ -1,3 +1,4 @@
+#pragma once
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -10,13 +11,16 @@ enum Direccion
     OESTE
 };
 
-enum ComandoDron
-{
-    AVANZAR,
-    RETROCEDER,
-    GIRAR_DER,
-    GIRAR_IZQ,
-    COSECHAR
+enum ComandoDron {
+    CMD_AVANZAR,
+    CMD_COSECHAR,
+    CMD_REGAR,
+    CMD_SEMBRAR
+};
+
+struct InstruccionDron {
+    ComandoDron comando;
+    Direccion parametroDir; // Solo se usará si el comando es CMD_AVANZAR
 };
 
 struct DronAutomatizado
@@ -24,16 +28,17 @@ struct DronAutomatizado
     bool activo = false;
     int x = 0; 
     int z = 0; 
-    Direccion mirando = NORTE;
+    Direccion mirando = static_cast<Direccion>(NORTE);
 
     // --- NUEVAS VARIABLES VISUALES ---
     glm::vec3 posicion3D;
-    float escala = 0.4f;
-    float alturaFlote = 0.85f;
+    //float escala = 0.4f;
+    //float alturaFlote = 0.85f;
 
-    std::vector<ComandoDron> rutina;
+    std::vector<InstruccionDron> rutina;
     int pasoActual = 0;
     float tiempoUltimoPaso = 0.0f;
+    bool repiteInfinito = false;
 
     std::string rutaScript = "script_dron.txt";
     std::filesystem::file_time_type fechaUltimaLectura;
@@ -65,6 +70,8 @@ struct BloqueTierra
     bool necesitaAgua;   // Controla si pide agua
 };
 
+#include "compiladorDron.h"
+
 class JuegoGranja
 {
 public:
@@ -74,8 +81,10 @@ public:
     int semillasHabas;
     float aguaLitros;
     int dineroSoles;
+    // --- CONTROL DEL TIEMPO
     float diasGlobales;
     int diaActualEntero;
+    bool juegoPausado;
 
     // --- AGRICULTOR ---
     int gridX; // 
@@ -112,6 +121,8 @@ public:
         escalaAgricultor = 0.5f;
         escalaDron = 0.3f;
         tamanioMundo = 4;
+        
+        juegoPausado = false;
 
         // Inicializamos el terreno con bloques vacíos
         actualizarPosicionAgricultor();
@@ -140,21 +151,25 @@ public:
     // movimientos del agricultor
     void moverArriba()
     {
+        if (juegoPausado) return;
         gridZ = (gridZ - 1 + tamanioMundo) % tamanioMundo;
         actualizarPosicionAgricultor();
     }
     void moverAbajo()
     {
+        if (juegoPausado) return;
         gridZ = (gridZ + 1) % tamanioMundo;
         actualizarPosicionAgricultor();
     }
     void moverIzquierda()
     {
+        if (juegoPausado) return;
         gridX = (gridX - 1 + tamanioMundo) % tamanioMundo;
         actualizarPosicionAgricultor();
     }
     void moverDerecha()
     {
+        if (juegoPausado) return;
         gridX = (gridX + 1) % tamanioMundo;
         actualizarPosicionAgricultor();
     }
@@ -164,6 +179,7 @@ public:
     // Función para sembrar en la posición actual
     void sembrarPapa()
     {
+        if (juegoPausado) return;
         // Calculamos el índice del arreglo 1D a partir de 2D: (fila * total_columnas) + columna
         int indice = (gridZ * tamanioMundo) + gridX;
 
@@ -185,11 +201,23 @@ public:
         }
     }
 
+    // --- ACCIONES FÍSICAS EXCLUSIVAS DEL DRON ---
+    void accionDronSembrar() {
+        int indice = (miDron.z * tamanioMundo) + miDron.x;
+        if (terreno[indice].estado == VACIO && semillasPapa > 0) {
+            terreno[indice].estado = SEMBRADO;
+            terreno[indice].cultivo = PAPA;
+            semillasPapa--;
+            std::cout << "[DRON] Papa sembrada en (" << miDron.x << "," << miDron.z << ").\n";
+        }
+    }
+
     #pragma endregion
 
     #pragma region regar
     void regarTierra()
     {
+        if (juegoPausado) return;
         int indice = (gridZ * tamanioMundo) + gridX;
         BloqueTierra &bloque = terreno[indice];
 
@@ -230,6 +258,18 @@ public:
             std::cout << "Esta tierra no necesita agua en este momento.\n";
         }
     }
+
+    void accionDronRegar() {
+        int indice = (miDron.z * tamanioMundo) + miDron.x;
+        BloqueTierra &bloque = terreno[indice];
+        if (bloque.necesitaAgua && aguaLitros >= 1.0f) {
+            aguaLitros -= 1.0f;
+            bloque.necesitaAgua = false;
+            if (bloque.estado == MARCHITO) { bloque.estado = CRECIENDO; aguaLitros -= 1.0f; } // Cobra doble si está marchito
+            std::cout << "[DRON] Tierra regada en (" << miDron.x << "," << miDron.z << ").\n";
+        }
+    }
+
     #pragma endregion
 
     #pragma region cosechar
@@ -280,6 +320,20 @@ public:
             std::cout << "La planta aun no esta lista para ser cosechada.\n";
         }
     }
+
+    void accionDronCosechar() {
+        int indice = (miDron.z * tamanioMundo) + miDron.x;
+        BloqueTierra &bloque = terreno[indice];
+        if (bloque.estado == LISTO) {
+            dineroSoles += 10; // Suponemos que cosechó papa
+            bloque.estado = VACIO;
+            bloque.cultivo = NINGUNO;
+            bloque.diasPlantado = 0.0f;
+            bloque.necesitaAgua = false;
+            std::cout << "[DRON] Cosecha recolectada en (" << miDron.x << "," << miDron.z << ").\n";
+        }
+    }
+
     #pragma endregion
     
     void mostrarRecursos()
@@ -348,10 +402,12 @@ public:
             if (!std::filesystem::exists(miDron.rutaScript))
             {
                 std::ofstream nuevoArchivo(miDron.rutaScript);
-                nuevoArchivo << "# Escribe tu codigo de automatizacion aqui:\n";
+                //nuevoArchivo << "# Escribe tu codigo de automatizacion aqui:\n";
                 nuevoArchivo.close();
             }
             miDron.fechaUltimaLectura = std::filesystem::last_write_time(miDron.rutaScript);
+
+            juegoPausado = true;
 
             std::cout << "\n[SISTEMA] Dron adquirido. Archivo 'script_dron.txt' listo.\n";
             mostrarRecursos();
@@ -432,13 +488,65 @@ public:
     void procesarRutinaDron(float deltaTime) {
         if (!miDron.activo) return;
         // FUTURO: Aquí es donde el dron ejecutará paso a paso la lista de comandos
-        // cada cierto tiempo, usando el deltaTime.
+        // Si el juego está pausado, el dron no tiene memoria, o ya terminó... no hace nada
+        if (juegoPausado || !miDron.activo || miDron.rutina.empty()) return;
+        if (miDron.pasoActual >= miDron.rutina.size() && !miDron.repiteInfinito) return;
+
+        // Sumamos el tiempo que ha pasado en la vida real
+        miDron.tiempoUltimoPaso += deltaTime;
+
+        // VELOCIDAD DEL DRON: Ejecuta 1 instrucción cada 1.0 segundos
+        if (miDron.tiempoUltimoPaso >= 1.0f) {
+            
+            // Si llegó al final pero tiene "while True:", lo regresamos a la línea 0
+            if (miDron.pasoActual >= miDron.rutina.size() && miDron.repiteInfinito) {
+                miDron.pasoActual = 0;
+            }
+
+            // Sacamos la instrucción que toca leer hoy
+            InstruccionDron instruccionActual = miDron.rutina[miDron.pasoActual];
+
+            std::cout << "[DRON] Ejecutando paso " << miDron.pasoActual << "...\n";
+
+            // --- EL CEREBRO FÍSICO DEL DRON ---
+            switch (instruccionActual.comando) {
+                case CMD_AVANZAR:
+                    if (instruccionActual.parametroDir == NORTE) miDron.z--;
+                    else if (instruccionActual.parametroDir == SUR) miDron.z++;
+                    else if (instruccionActual.parametroDir == ESTE) miDron.x++;
+                    else if (instruccionActual.parametroDir == OESTE) miDron.x--;
+                    
+                    // Aplicamos el efecto Pac-Man (Toroide) para que no se salga del mapa
+                    miDron.z = (miDron.z + tamanioMundo) % tamanioMundo;
+                    miDron.x = (miDron.x + tamanioMundo) % tamanioMundo;
+                    
+                    actualizarPosicionDron(); // Le avisamos a la tarjeta gráfica que se movió
+                    break;
+
+                case CMD_SEMBRAR:
+                    accionDronSembrar(); // Llamamos a su función física (la crearemos abajo)
+                    break;
+
+                case CMD_REGAR:
+                    accionDronRegar(); 
+                    break;
+
+                case CMD_COSECHAR:
+                    accionDronCosechar(); 
+                    break;
+            }
+
+            // Reiniciamos el cronómetro y avanzamos al siguiente paso en la memoria
+            miDron.tiempoUltimoPaso = 0.0f;
+            miDron.pasoActual++;
+        }
     }
 
     #pragma region tiempo
     // Función que se llamará en cada ciclo del juego
     void pasarElTiempo(float deltaTime)
     {
+        if (juegoPausado) return;
         // Convertimos los segundos reales a días del juego
         float diasPasados = deltaTime / 2.0f;
         diasGlobales += diasPasados;
@@ -488,14 +596,21 @@ public:
             }
         }
     }
-    #pragma endregion
 
-    
+    void alternarPausa()
+    {
+        juegoPausado = !juegoPausado;
+        if (juegoPausado) {
+            std::cout << "\n[================ JUEGO PAUSADO ================]\n";
+        } else {
+            std::cout << "\n[================ JUEGO REANUDADO ==============]\n";
+        }
+    }
+    #pragma endregion
 
     void vigilarScriptDron()
     {
-        if (!miDron.activo)
-            return;
+        if (!miDron.activo) return;
 
         // 1. Si el archivo no existe, lo creamos para que el jugador lo vea
         if (!fs::exists(miDron.rutaScript))
@@ -521,6 +636,8 @@ public:
             std::cout << "\n============================================\n";
             std::cout << "[SISTEMA] ¡Cambio detectado (Ctrl+S)! Recargando código del dron...\n";
 
+            juegoPausado = false;
+
             leerYCompilarScript();
         }
     }
@@ -529,21 +646,41 @@ public:
     {
         std::ifstream archivo(miDron.rutaScript);
         std::string linea;
+        std::string codigoCompleto = "";
 
-        // Aquí es donde limpiarás las instrucciones viejas del dron
-        // miDron.rutina.clear();
-        // miDron.pasoActual = 0;
-
-        std::cout << "--- CODIGO RECIBIDO ---\n";
-        while (std::getline(archivo, linea))
-        {
-            // Por ahora solo lo imprimimos para probar que funciona
-            std::cout << ">>> " << linea << "\n";
-
-            // FUTURO: Aquí enviarás esta 'linea' a tu Lexer/Parser
-            // para convertir "avanzar()" en ComandoDron::AVANZAR
+        // 1. Leer el archivo completo
+        while (std::getline(archivo, linea)) {
+            codigoCompleto += linea + "\n";
         }
-        std::cout << "-----------------------\n";
+        
+        // Si el archivo está vacío, no hacemos nada
+        if (codigoCompleto.empty()) return;
+
+        std::cout << "--- COMPILANDO SCRIPT ---\n";
+        
+        // 2. FASE 1: Lexer (Texto a Tokens)
+        LexerDron lexer(codigoCompleto);
+        std::vector<Token> tokens = lexer.escanearTodo();
+        
+        // 3. FASE 2: Parser (Tokens a Rutina)
+        ParserDron parser(tokens);
+        ResultadoCompilacion resultado = parser.parsear();
+
+        // 4. Guardar en el Dron si no hubo errores
+        if (resultado.exito) {
+            miDron.rutina = resultado.rutina;
+            miDron.pasoActual = 0; // Reiniciamos el puntero de instrucción
+            
+            // Un pequeño truco MVP para el while True: 
+            // Guardamos si el bucle es infinito en una nueva variable booleana del Dron.
+            // (Añade 'bool repiteInfinito = false;' a tu struct DronAutomatizado).
+            miDron.repiteInfinito = resultado.esBucleInfinito;
+
+            std::cout << "[EXITO] Codigo compilado correctamente. " << miDron.rutina.size() << " instrucciones cargadas.\n";
+        } else {
+            std::cout << "[FALLO] El dron no se movera hasta que corrijas el codigo.\n";
+        }
+        std::cout << "-------------------------\n";
     }
 
     
