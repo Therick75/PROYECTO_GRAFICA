@@ -209,6 +209,7 @@ public:
             terreno[indice].cultivo = PAPA;
             semillasPapa--;
             std::cout << "[DRON] Papa sembrada en (" << miDron.x << "," << miDron.z << ").\n";
+            mostrarRecursos();
         }
     }
 
@@ -258,7 +259,7 @@ public:
             std::cout << "Esta tierra no necesita agua en este momento.\n";
         }
     }
-
+    // dron regar
     void accionDronRegar() {
         int indice = (miDron.z * tamanioMundo) + miDron.x;
         BloqueTierra &bloque = terreno[indice];
@@ -267,6 +268,7 @@ public:
             bloque.necesitaAgua = false;
             if (bloque.estado == MARCHITO) { bloque.estado = CRECIENDO; aguaLitros -= 1.0f; } // Cobra doble si está marchito
             std::cout << "[DRON] Tierra regada en (" << miDron.x << "," << miDron.z << ").\n";
+            mostrarRecursos();
         }
     }
 
@@ -331,6 +333,7 @@ public:
             bloque.diasPlantado = 0.0f;
             bloque.necesitaAgua = false;
             std::cout << "[DRON] Cosecha recolectada en (" << miDron.x << "," << miDron.z << ").\n";
+            mostrarRecursos();
         }
     }
 
