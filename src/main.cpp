@@ -9,7 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <vector> // Necesario para std::vector
+#include <vector>
 #include "juego/juegoGranja.h"
 #include <filesystem>
 namespace fs = std::filesystem;
@@ -93,7 +93,37 @@ unsigned int crearProgramaShader(const char* rutaVertex, const char* rutaFragmen
     return ID;
 }
 
+void drawCube(unsigned int modelLoc, unsigned int colorLoc, unsigned int useTextureLoc, const glm::vec3& position, const glm::vec3& scale, const glm::vec4& color) {
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, position);
+    model = glm::scale(model, scale);
+    glUniform1i(useTextureLoc, 0);
+    glUniform4fv(colorLoc, 1, glm::value_ptr(color));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+}
 
+void drawAgricultor(unsigned int modelLoc, unsigned int colorLoc, unsigned int useTextureLoc, const glm::vec3& basePos, float escala) {
+    const glm::vec4 bodyColor = glm::vec4(0.1f, 0.3f, 0.8f, 1.0f); // camisa azul
+    const glm::vec4 headColor = glm::vec4(0.95f, 0.8f, 0.6f, 1.0f); // piel
+    const glm::vec4 pantColor = glm::vec4(0.2f, 0.15f, 0.1f, 1.0f); // pantalón oscuro
+    const glm::vec4 hairColor = glm::vec4(0.1f, 0.05f, 0.0f, 1.0f); // pelo oscuro
+
+    float s = escala;
+    glm::vec3 bodyScale = glm::vec3(0.4f * s, 0.65f * s, 0.25f * s);
+    glm::vec3 headScale = glm::vec3(0.28f * s, 0.28f * s, 0.28f * s);
+    glm::vec3 armScale = glm::vec3(0.12f * s, 0.55f * s, 0.12f * s);
+    glm::vec3 legScale = glm::vec3(0.14f * s, 0.55f * s, 0.14f * s);
+    glm::vec3 hatScale = glm::vec3(0.32f * s, 0.10f * s, 0.32f * s);
+
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.4f * s, 0.0f), bodyScale, bodyColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.95f * s, 0.0f), headScale, headColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(-0.32f * s, 0.2f * s, 0.0f), armScale, bodyColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.32f * s, 0.2f * s, 0.0f), armScale, bodyColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(-0.12f * s, -0.5f * s, 0.0f), legScale, pantColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.12f * s, -0.5f * s, 0.0f), legScale, pantColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 1.18f * s, 0.0f), hatScale, hairColor);
+}
 
 int main() {
     glfwInit();
@@ -111,47 +141,47 @@ int main() {
     unsigned int shaderProgram = crearProgramaShader("src/vertex.glsl", "src/fragment.glsl");
 
     float vertices[] = {
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,   0.0f,  0.0f, -1.0f,   0.0f, 0.0f,
 
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,   0.0f,  0.0f,  1.0f,   0.0f, 0.0f,
 
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  -1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  -1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  -1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  -1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
 
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,   1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,   1.0f,  0.0f,  0.0f,   0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,   1.0f,  0.0f,  0.0f,   1.0f, 0.0f,
 
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,   0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,   0.0f, -1.0f,  0.0f,   1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,   0.0f, -1.0f,  0.0f,   0.0f, 1.0f,
 
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+        -0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,   0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,   0.0f,  1.0f,  0.0f,   1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,   0.0f,  1.0f,  0.0f,   0.0f, 1.0f
     };
 
     unsigned int VBO, VAO;
@@ -162,23 +192,41 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
-    unsigned int textura;
-    glGenTextures(1, &textura);
-    glBindTexture(GL_TEXTURE_2D, textura);
+    unsigned int texturaVacio, texturaSembrado;
+    glGenTextures(1, &texturaVacio);
+    glBindTexture(GL_TEXTURE_2D, texturaVacio);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    stbi_set_flip_vertically_on_load(true); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    stbi_set_flip_vertically_on_load(true);
     int w, h, ch;
-    unsigned char *data = stbi_load("logo.png", &w, &h, &ch, 0);
-    if (data) { 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data); 
-        glGenerateMipmap(GL_TEXTURE_2D); 
+    unsigned char *data = stbi_load("tierra_vacio.jpg", &w, &h, &ch, 0);
+    if (data) {
+        GLenum format = (ch == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    stbi_image_free(data);
+
+    glGenTextures(1, &texturaSembrado);
+    glBindTexture(GL_TEXTURE_2D, texturaSembrado);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    data = stbi_load("tierra_sembrado.jpg", &w, &h, &ch, 0);
+    if (data) {
+        GLenum format = (ch == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, w, h, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
     }
     stbi_image_free(data);
 
@@ -200,6 +248,16 @@ int main() {
     }
 
     glUseProgram(shaderProgram);
+    unsigned int textureLoc = glGetUniformLocation(shaderProgram, "texture1");
+    unsigned int useTextureLoc = glGetUniformLocation(shaderProgram, "useTexture");
+    unsigned int lightDirLoc = glGetUniformLocation(shaderProgram, "lightDir");
+    unsigned int lightColorLoc = glGetUniformLocation(shaderProgram, "lightColor");
+    unsigned int ambientStrengthLoc = glGetUniformLocation(shaderProgram, "ambientStrength");
+    glUniform1i(textureLoc, 0);
+    glUniform3f(lightDirLoc, -0.2f, -1.0f, -0.3f);
+    glUniform3f(lightColorLoc, 1.0f, 0.95f, 0.9f);
+    glUniform1f(ambientStrengthLoc, 0.35f);
+
     // Vincular la instancia del juego a la ventana para los controles
     glfwSetWindowUserPointer(window, &juego);
     glfwSetKeyCallback(window, key_callback);
@@ -235,6 +293,7 @@ int main() {
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         glBindVertexArray(VAO);
+        glActiveTexture(GL_TEXTURE0);
         
         // --- DIBUJAR LOS 16 BLOQUES DEL TERRENO ---
         // Obtener la ubicación de la variable 'objectColor' en la tarjeta gráfica
@@ -247,21 +306,30 @@ int main() {
             glm::mat4 modelTerreno = glm::mat4(1.0f);
             modelTerreno = glm::translate(modelTerreno, juego.terreno[i].posicion);
             
-            // Lógica de colores basada en el tiempo y el agua
+            // Lógica de colores/texturas basada en el estado del terreno
             if (juego.terreno[i].estado == VACIO) {
-                glUniform4f(colorLoc, 0.54f, 0.27f, 0.07f, 1.0f); // Marrón tierra
+                glBindTexture(GL_TEXTURE_2D, texturaVacio);
+                glUniform1i(useTextureLoc, 1);
+                glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
             } else if (juego.terreno[i].estado == SEMBRADO) {
-                glUniform4f(colorLoc, 0.35f, 0.16f, 0.04f, 1.0f); // Marrón oscuro
-            } else if (juego.terreno[i].estado == CRECIENDO) {
-                if (juego.terreno[i].necesitaAgua) {
-                    glUniform4f(colorLoc, 1.0f, 0.0f, 0.0f, 1.0f); // ROJO (Pide agua 1L)
+                glBindTexture(GL_TEXTURE_2D, texturaSembrado);
+                glUniform1i(useTextureLoc, 1);
+                glUniform4f(colorLoc, 1.0f, 1.0f, 1.0f, 1.0f);
+            } else {
+                glUniform1i(useTextureLoc, 0);
+                if (juego.terreno[i].estado == CRECIENDO) {
+                    if (juego.terreno[i].necesitaAgua) {
+                        glUniform4f(colorLoc, 1.0f, 0.0f, 0.0f, 1.0f); // ROJO (Pide agua 1L)
+                    } else {
+                        glUniform4f(colorLoc, 0.0f, 0.7f, 0.0f, 1.0f); // VERDE (Sana)
+                    }
+                } else if (juego.terreno[i].estado == MARCHITO) {
+                    glUniform4f(colorLoc, 0.5f, 0.0f, 0.0f, 1.0f); // ROJO OSCURO (Pide agua 2L)
+                } else if (juego.terreno[i].estado == LISTO) {
+                    glUniform4f(colorLoc, 0.8f, 0.8f, 0.0f, 1.0f); // AMARILLO (Lista para cosechar)
                 } else {
-                    glUniform4f(colorLoc, 0.0f, 0.7f, 0.0f, 1.0f); // VERDE (Sana)
+                    glUniform4f(colorLoc, 0.54f, 0.27f, 0.07f, 1.0f); // Marrón tierra por defecto
                 }
-            } else if (juego.terreno[i].estado == MARCHITO) {
-                glUniform4f(colorLoc, 0.5f, 0.0f, 0.0f, 1.0f); // ROJO OSCURO (Pide agua 2L)
-            } else if (juego.terreno[i].estado == LISTO) {
-                glUniform4f(colorLoc, 0.8f, 0.8f, 0.0f, 1.0f); // AMARILLO (Lista para cosechar)
             }
 
             unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
@@ -270,18 +338,11 @@ int main() {
         }
 
         // -----------------------------------------
-        // 2. DIBUJAR EL AGRICULTOR (Negro)
+        // 2. DIBUJAR EL AGRICULTOR Mejorado
         // -----------------------------------------
-        glUniform4f(colorLoc, 0.0f, 0.0f, 0.0f, 1.0f);
-
-        glm::mat4 modelAgricultor = glm::mat4(1.0f);
-        // std::cout << "debug main agricultor" << juego.posicionAgricultor.x << ", " << juego.posicionAgricultor.y << ", " << juego.posicionAgricultor.z << "\n";
-        modelAgricultor = glm::translate(modelAgricultor, juego.posicionAgricultor);
-        modelAgricultor = glm::scale(modelAgricultor, glm::vec3(juego.escalaAgricultor));
-        
         unsigned int modelLocAgr = glGetUniformLocation(shaderProgram, "model");
-        glUniformMatrix4fv(modelLocAgr, 1, GL_FALSE, glm::value_ptr(modelAgricultor));
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glUniform1i(useTextureLoc, 0);
+        drawAgricultor(modelLocAgr, colorLoc, useTextureLoc, juego.posicionAgricultor, juego.escalaAgricultor);
 
         // -----------------------------------------
         // 3. DIBUJAR EL DRON AUTOMATIZADO (Azul Claro)
