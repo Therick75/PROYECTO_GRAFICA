@@ -125,6 +125,42 @@ void drawAgricultor(unsigned int modelLoc, unsigned int colorLoc, unsigned int u
     drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 1.18f * s, 0.0f), hatScale, hairColor);
 }
 
+void drawDron(unsigned int modelLoc, unsigned int colorLoc, unsigned int useTextureLoc, const glm::vec3& basePos, float escala) {
+    const glm::vec4 bodyColor = glm::vec4(0.2f, 0.2f, 0.25f, 1.0f);
+    const glm::vec4 armColor = glm::vec4(0.15f, 0.15f, 0.18f, 1.0f);
+    const glm::vec4 rotorColor = glm::vec4(0.05f, 0.05f, 0.05f, 1.0f);
+    const glm::vec4 glassColor = glm::vec4(0.1f, 0.45f, 0.75f, 1.0f);
+    const glm::vec4 legColor = glm::vec4(0.1f, 0.1f, 0.12f, 1.0f);
+
+    float s = escala;
+    glm::vec3 bodyScale = glm::vec3(0.45f * s, 0.14f * s, 0.45f * s);
+    glm::vec3 glassScale = glm::vec3(0.25f * s, 0.12f * s, 0.18f * s);
+    glm::vec3 armScaleH = glm::vec3(0.28f * s, 0.05f * s, 0.05f * s);
+    glm::vec3 armScaleV = glm::vec3(0.05f * s, 0.05f * s, 0.28f * s);
+    glm::vec3 rotorScale = glm::vec3(0.08f * s, 0.02f * s, 0.08f * s);
+    glm::vec3 legScale = glm::vec3(0.05f * s, 0.35f * s, 0.05f * s);
+
+    // Base central
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.12f * s, 0.0f), bodyScale, bodyColor);
+    // Cabina frontal
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.16f * s, -0.22f * s), glassScale, glassColor);
+    // Brazos/X
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.27f * s, 0.16f * s, 0.0f), armScaleH, armColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(-0.27f * s, 0.16f * s, 0.0f), armScaleH, armColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.16f * s, 0.27f * s), armScaleV, armColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.16f * s, -0.27f * s), armScaleV, armColor);
+    // Motores / rotores
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.52f * s, 0.16f * s, 0.0f), rotorScale, rotorColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(-0.52f * s, 0.16f * s, 0.0f), rotorScale, rotorColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.16f * s, 0.52f * s), rotorScale, rotorColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.0f, 0.16f * s, -0.52f * s), rotorScale, rotorColor);
+    // Patas de aterrizaje
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.2f * s, -0.18f * s, 0.2f * s), legScale, legColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(-0.2f * s, -0.18f * s, 0.2f * s), legScale, legColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(0.2f * s, -0.18f * s, -0.2f * s), legScale, legColor);
+    drawCube(modelLoc, colorLoc, useTextureLoc, basePos + glm::vec3(-0.2f * s, -0.18f * s, -0.2f * s), legScale, legColor);
+}
+
 int main() {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -348,16 +384,9 @@ int main() {
         // 3. DIBUJAR EL DRON AUTOMATIZADO (Azul Claro)
         // -----------------------------------------
         if (juego.miDron.activo) {
-            glUniform4f(colorLoc, 0.4f, 0.7f, 1.0f, 1.0f); 
-
-            glm::mat4 modelDron = glm::mat4(1.0f);
-            // std::cout << "debug main dron " << juego.posicionDron.x << ", " << juego.posicionDron.y << ", " << juego.posicionDron.z << "\n";
-            modelDron = glm::translate(modelDron, juego.posicionDron);
-            modelDron = glm::scale(modelDron, glm::vec3(juego.escalaDron)); 
-            
             unsigned int modelLocDron = glGetUniformLocation(shaderProgram, "model");
-            glUniformMatrix4fv(modelLocDron, 1, GL_FALSE, glm::value_ptr(modelDron));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            glUniform1i(useTextureLoc, 0);
+            drawDron(modelLocDron, colorLoc, useTextureLoc, juego.posicionDron, juego.escalaDron);
         }
 
         glfwSwapBuffers(window);

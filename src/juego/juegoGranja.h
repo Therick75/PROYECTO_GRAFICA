@@ -119,7 +119,7 @@ public:
         gridX = 0;
         gridZ = 0;
         escalaAgricultor = 0.5f;
-        escalaDron = 0.3f;
+        escalaDron = 0.9f;
         tamanioMundo = 4;
         
         juegoPausado = false;
